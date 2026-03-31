@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Learner Driving Hours</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="manifest" href="LearnerHours.json" />
+    <link rel="icon" href="icons/icon2.jpg" />
+  </head>
+  <body>
+    <section id="password">
+      <form>
+        <fieldset>
+          <legend>Password</legend>
+          <p>
+            <label for="password">Enter Password</label>
+            <input type="text" id="passwordinput" required/>
+            <button type="password">Enter</button>
+          </p>
+        </fieldset>
+      </form>
+    </section>
+    <section id="main body" hidden >
+      <h1>Driving Hours</h1>
+      <form>
+        <fieldset>
+          <legend>New Session</legend>
+          <div style="margin-left:30px;">
+            <p>
+              <label for="date">Date</label>
+              <input type="date" id="date" required />
+            </p>
+            <p>
+              <label for="start-time">Start time</label>
+              <input type="time" id="start-time" required />
+            </p>
+            <p>
+              <label for="end-time">End time</label>
+              <input type="time" id="end-time" required />
+            </p>
+            <p>
+              <label for="note">Note</label>
+              <input type="text" id="note"/>
+            </p>
+              
+            <p>
+              <button type="submit">Add Session</button>
+            </p>
+          </div>
+        </fieldset>
+      </form>
+      <p></p>
+      <form id="search">
+        <fieldset>
+          <legend>Search Tags</legend>
+          <div style="margin-left:30px;">
+            <label for="search">Search Past Sessions</label>
+            <p>
+              <input type="text" id="search" required/>
+              <button type="search">Find</button>
+            </p>
+          </div>
+        </fieldset>
+      </form>
+      <div id="show">
+        <section id="past-sessions"></section>
+        <script src="app.js" defer></script>
+
+        <button id="clear-all">Clear Log</button>
+        <script>
+          if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("sw.js");
+          }
+        </script>
+      </div>
+    </section>
+  </body>
+</html>
