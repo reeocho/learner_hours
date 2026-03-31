@@ -1,9 +1,10 @@
 // create constants for the form and the form controls
 const passwordSection = document.getElementById('password');
-const passwordInput = document.getElementById('passwordinput');
 const passwordSubmit = document.querySelector('button[type="password"]');
+const searchFormEl = document.getElementsByTagName("form")[2];
+console.log("Search form element:", searchFormEl);
 const body = document.getElementById('main body');
-const newSessionFormEl = document.getElementsByTagName("form")[0];
+const newSessionFormEl = document.getElementsByTagName("form")[1];
 const inputdateEl = document.getElementById("date");
 const startTimeInputEl = document.getElementById("start-time");
 const endTimeInputEl = document.getElementById("end-time");
@@ -11,23 +12,32 @@ const noteInputEl = document.getElementById("note");
 const STORAGE_KEY = "learner-hours";
 const pastSessionContainer = document.getElementById("past-sessions");
 const clearAll = document.getElementById("clear-all");
+let sessionsDisplayed = 5; // Track how many sessions are currently displayed
 
 function checkPasswordAndToggle() {
+  const passwordInput = document.getElementById('passwordinput');
   const enteredpass = passwordInput.value;
   if (enteredpass === 'password') {
     passwordSection.style.display = 'none';
     body.style.display = 'block';
-    console.log('Password correct! Section hidden.');
+    sessionStorage.setItem('passwordVerified', true);
   } else {
     alert('Incorrect password. Please try again.');
     passwordInput.value = '';
   }
 }
 
-passwordSubmit.addEventListener('click', function(event) {
+if (!sessionStorage.getItem('passwordVerified')) {
+  console.log("yay");
+  body.style.display = 'none';
+  passwordSection.style.display = 'block';
+
+
+  passwordSubmit.addEventListener('click', function(event) {
     event.preventDefault();
     checkPasswordAndToggle();
-});
+  });
+}
 
 
 clearAll.addEventListener("click", () => {
@@ -38,14 +48,9 @@ clearAll.addEventListener("click", () => {
   }
 });
 
-// Listen to form submissions.
 newSessionFormEl.addEventListener("submit", (event) => {
-  // console.log('You have clicked on the button.')
-  // Prevent the form from submitting to the server
-  // since everything is client-side.
   event.preventDefault();
 
-  // Get the start and end times + date + search prompt from the form.
   const date = inputdateEl.value;
   const startTime = startTimeInputEl.value;
   const endTime = endTimeInputEl.value;
@@ -73,6 +78,202 @@ newSessionFormEl.addEventListener("submit", (event) => {
   newSessionFormEl.reset();
 });
 
+function searchSessions(input) {
+  if (checkSearchInvalid(input)) {
+    return;
+  }
+  const sessions = getAllStoredSessions();
+  const filteredSessions = sessions.filter(session => {
+    return session.note.toLowerCase().includes(input);
+  });
+  renderFilteredSessions(filteredSessions);
+}
+
+searchFormEl.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const searchInput = document.getElementById("search-input");
+  const query = searchInput.value.trim().toLowerCase();
+  searchSessions(query);
+});
+
+function renderFilteredSessions(sessions) { /* mostly copy-pasted from renderPastSessions, but with some adjustments to show only filtered sessions and a header for search results */
+  const allSessions = getAllStoredSessions();
+  pastSessionContainer.textContent = "";
+  if (sessions.length === 0) {
+    const emptyMessage = document.createElement("p");
+    emptyMessage.textContent = "No sessions found matching your search.";
+    pastSessionContainer.appendChild(emptyMessage);
+    return;
+  } else {
+    const header = document.createElement("h2");
+    header.textContent = "Search results";
+    pastSessionContainer.appendChild(header);
+    const list = document.createElement("ul");
+    list.style.listStyle = "none";
+    sessions.forEach(session => {
+      const index = allSessions.findIndex(s => s.date === session.date && s.startTime === session.startTime && s.endTime === session.endTime && s.note === session.note);
+      const sessionEl = document.createElement("li");
+
+      // Create display view
+      const displayDiv = document.createElement("div");
+      displayDiv.className = "session-display";
+      
+      const sessionText = document.createElement("span");
+      sessionText.textContent = `${formatDate(session.date)}: ${formatTime(session.startTime)} --> ${formatTime(session.endTime)}: ${(session.note)}`;
+      sessionText.style.marginRight = "20px";
+      
+      // buttons
+      const editBtn = document.createElement("button");
+      editBtn.textContent = "Edit";
+      editBtn.style.marginRight = "10px";
+      const delbutton = document.createElement("button");
+      delbutton.textContent = "Delete";
+      
+      displayDiv.appendChild(sessionText);
+      displayDiv.appendChild(editBtn);
+      displayDiv.appendChild(delbutton);
+      
+      // Edit view
+      const edit = document.createElement("div");
+      edit.className = "session-edit";
+      edit.style.display = "none";
+      edit.style.marginTop = "10px";
+      
+      // Date input
+      const label = document.createElement("label");
+      label.textContent = "Date: ";
+      const inputdate = document.createElement("input");
+      inputdate.type = "date";
+      inputdate.value = session.date;
+      inputdate.style.marginRight = "10px";
+      
+      // Start time input
+      const startLabel = document.createElement("label");
+      startLabel.textContent = "Start: ";
+      const startInput = document.createElement("input");
+      startInput.type = "time";
+      startInput.value = session.startTime;
+      startInput.style.marginRight = "10px";
+      
+      // End time input
+      const endLabel = document.createElement("label");
+      endLabel.textContent = "End: ";
+      const endInput = document.createElement("input");
+      endInput.type = "time";
+      endInput.value = session.endTime;
+      endInput.style.marginRight = "10px";
+
+      // Note input
+      const noteLabel = document.createElement("label");
+      noteLabel.textContent = "Note: ";
+      const noteInput = document.createElement("input");
+      noteInput.type = "text";
+      noteInput.value = session.note;
+      noteInput.style.marginRight = "10px";
+      noteInput.style.marginBottom = "10px";
+
+      
+      // Save button
+      const savebutton = document.createElement("button");
+      savebutton.textContent = "Save";
+      savebutton.style.marginRight = "5px";
+      savebutton.style.cursor = "pointer";
+      
+      // Cancel button
+      const cancel = document.createElement("button");
+      cancel.textContent = "Cancel";
+      cancel.style.cursor = "pointer";
+      
+      edit.appendChild(label);
+      edit.appendChild(inputdate);
+      edit.appendChild(document.createElement("br"));
+      edit.appendChild(startLabel);
+      edit.appendChild(startInput);
+      edit.appendChild(endLabel);
+      edit.appendChild(endInput);
+      edit.appendChild(document.createElement("br"));
+      edit.appendChild(noteLabel);
+      edit.appendChild(noteInput);
+      edit.appendChild(document.createElement("br"));
+      edit.appendChild(savebutton);
+      edit.appendChild(cancel);
+      
+      sessionEl.appendChild(displayDiv);
+      sessionEl.appendChild(edit);
+      
+      // Edit button click handler
+      editBtn.onclick = () => {
+        displayDiv.style.display = "none";
+        edit.style.display = "block";
+      };
+      
+      // Cancel button click handler
+      cancel.onclick = () => {
+        displayDiv.style.display = "block";
+        edit.style.display = "none";
+        // Reset inputs to original values
+        inputdate.value = session.date;
+        startInput.value = session.startTime;
+        endInput.value = session.endTime;
+        noteInput.value = session.note;
+      };
+      
+      savebutton.onclick = () => {
+        const newDate = inputdate.value;
+        const newStartTime = startInput.value;
+        const newEndTime = endInput.value;
+        const newNote = noteInput.value;
+        
+        // revalidate inputs
+        if (checkDateInvalid(newDate)) {
+          return;
+        }
+        
+        if (checkTimesInvalid(newStartTime, newEndTime)) {
+          return;
+        }
+        
+        // Update session
+        allSessions[index] = {
+          date: newDate,
+          startTime: newStartTime,
+          endTime: newEndTime,
+          note: newNote
+        };
+        
+        // Sort sessions by date
+        allSessions.sort((a, b) => {
+          return new Date(b.date) - new Date(a.date);
+        });
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(allSessions));
+        
+        // Re-render search results
+        const filtered = allSessions.filter(s => s.note.toLowerCase().includes(document.getElementById("search").value.trim().toLowerCase()));
+        renderFilteredSessions(filtered);
+        alert("Session updated successfully!");
+      };
+      
+      delbutton.onclick = () => {
+        if (confirm(`Delete session from ${formatDate(session.date)}?`)) {
+          allSessions.splice(index, 1);
+          if (allSessions.length === 0) {
+            localStorage.removeItem(STORAGE_KEY);
+          } else {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(allSessions));
+          }
+          // Re-render search results
+          const filtered = allSessions.filter(s => s.note.toLowerCase().includes(document.getElementById("search").value.trim().toLowerCase()));
+          renderFilteredSessions(filtered);
+        }
+      };
+      
+      list.appendChild(sessionEl);
+    });
+    pastSessionContainer.appendChild(list);
+  }
+}
+
 function checkDateInvalid(date) {
   // Check that date is not null or in future
   const today = new Date();
@@ -93,10 +294,11 @@ function checkDateInvalid(date) {
 
 function checkSearchInvalid(search) {
   if (!search) {
-    alert("No query")
-    newSessionFormEl.reset();
-    return true
+    // If no search query, show all sessions
+    renderPastSessions();
+    return true;
   }
+  return false;
 }
 
 function checkTimesInvalid(startTime, endTime) {
@@ -143,8 +345,11 @@ function getAllStoredSessions() {
   return sessions;
 }
 
-function renderPastSessions() {
+function renderPastSessions(reset = true) {
   const sessions = getAllStoredSessions();
+  if (reset) { /*on initial render only*/
+    sessionsDisplayed = 5;
+  }
 
   pastSessionContainer.textContent = "";
 
@@ -161,10 +366,9 @@ function renderPastSessions() {
   const prevlist = document.createElement("ul");
   prevlist.style.listStyle = "none";
 
-  sessions.forEach((session, index) => {
+  sessions.slice(0, sessionsDisplayed).forEach((session, displayIndex) => {
+    const index = sessions.indexOf(session);
     const sessionEl = document.createElement("li");
-
-    // Create display view
     const displayDiv = document.createElement("div");
     displayDiv.className = "session-display";
     
@@ -181,7 +385,6 @@ function renderPastSessions() {
     editBtn.style.marginRight = "10px";
     const delbutton = document.createElement("button");
     delbutton.textContent = "Delete";
-    
     displayDiv.appendChild(sessionText);
     displayDiv.appendChild(editBtn);
     displayDiv.appendChild(delbutton);
@@ -323,10 +526,30 @@ function renderPastSessions() {
   
   pastSessionContainer.appendChild(prevheader);
   pastSessionContainer.appendChild(prevlist);
+  
+  // Add "Show More" button if there are more sessions to display
+  const showDiv = document.getElementById("show");
+  
+  // Remove any existing "Show More" button
+  const existingShowMoreBtn = showDiv.querySelector('button[data-show-more="true"]');
+  if (existingShowMoreBtn) {
+    existingShowMoreBtn.remove();
+  }
+  
+  if (sessions.length > sessionsDisplayed) {
+    const showMoreBtn = document.createElement("button");
+    showMoreBtn.setAttribute("data-show-more", "true");
+    showMoreBtn.textContent = `Show More (${sessions.length - sessionsDisplayed} more)`;
+    showMoreBtn.style.marginRight = "10px";
+    showMoreBtn.onclick = () => {
+      sessionsDisplayed += 5;
+      renderPastSessions(false); // Don't reset the counter
+    };
+    showDiv.insertBefore(showMoreBtn, clearAll);
+  }
 }
 
 function formatDate(dateString) {
- 
   // Convert the date string to a Date object.
   const date = new Date(dateString);
 
@@ -336,8 +559,6 @@ function formatDate(dateString) {
 }
 
 function formatTime(timeString) {
-  // Change from 24-hour to 12-hour format
-
   // Separate hour and minutes from timeString
   const [hour, minute] = timeString.split(':');
 
@@ -363,6 +584,3 @@ function formatTime(timeString) {
 }
 
 renderPastSessions();
-  
- 
-
