@@ -14,6 +14,9 @@ const pastSessionContainer = document.getElementById("past-sessions");
 const clearAll = document.getElementById("clear-all");
 let sessionsDisplayed = 5; // Track how many sessions are currently displayed
 
+// In-memory cache for sessions to avoid repeated JSON parsing
+let sessionsCache = null;
+
 function checkPasswordAndToggle() {
   const passwordInput = document.getElementById('passwordinput');
   const enteredpass = passwordInput.value;
@@ -43,6 +46,7 @@ if (!sessionStorage.getItem('passwordVerified')) {
 clearAll.addEventListener("click", () => {
   if (confirm("Confirm deletion.")) {
     localStorage.removeItem(STORAGE_KEY);
+    sessionsCache = null; // Invalidate cache
     renderPastSessions();
     alert("All sessions cleared successfully, please reload page.");
   }
@@ -82,17 +86,26 @@ function searchSessions(input) {
   if (checkSearchInvalid(input)) {
     return;
   }
+  const newSearch = sanitisedSearch(input);
   const sessions = getAllStoredSessions();
   const filteredSessions = sessions.filter(session => {
-    return session.note.toLowerCase().includes(input);
+    return session.note.toLowerCase().includes(newSearch);
   });
   renderFilteredSessions(filteredSessions);
+}
+
+function sanitisedSearch(input) {
+  return input 
+        .replace(/\//g, "&#47;")  // Replace / with &#47; 
+        .replace(/</g, "&lt;")   // Replace < with &lt; 
+        .replace(/>/g, "&gt;");  // Replace > with &gt; 
 }
 
 searchFormEl.addEventListener("submit", (event) => {
   event.preventDefault();
   const searchInput = document.getElementById("search-input");
-  const query = searchInput.value.trim().toLowerCase();
+  const query = sanitisedSearch(searchInput.value);
+  console.log("Search query:", query);
   searchSessions(query);
 });
 
@@ -247,6 +260,7 @@ function renderFilteredSessions(sessions) { /* mostly copy-pasted from renderPas
         });
         
         localStorage.setItem(STORAGE_KEY, JSON.stringify(allSessions));
+        invalidateSessionsCache();
         
         // Re-render search results
         const filtered = allSessions.filter(s => s.note.toLowerCase().includes(document.getElementById("search").value.trim().toLowerCase()));
@@ -262,6 +276,7 @@ function renderFilteredSessions(sessions) { /* mostly copy-pasted from renderPas
           } else {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(allSessions));
           }
+          invalidateSessionsCache();
           // Re-render search results
           const filtered = allSessions.filter(s => s.note.toLowerCase().includes(document.getElementById("search").value.trim().toLowerCase()));
           renderFilteredSessions(filtered);
@@ -294,7 +309,6 @@ function checkDateInvalid(date) {
 
 function checkSearchInvalid(search) {
   if (!search) {
-    // If no search query, show all sessions
     renderPastSessions();
     return true;
   }
@@ -319,6 +333,18 @@ function storeNewSession(date, startTime, endTime, note) {
   // Get data from storage.
   const sessions = getAllStoredSessions();
 
+  // Check if this session already exists
+  const isDuplicate = sessions.some(session => 
+    session.date === date && 
+    session.startTime === startTime || 
+    session.endTime === endTime
+  );
+
+  if (isDuplicate) {
+    alert("This session already exists!");
+    return;
+  }
+
   // Add the new session object to the end of the array of session objects.
   sessions.push({ date, startTime, endTime, note });
 
@@ -330,11 +356,17 @@ function storeNewSession(date, startTime, endTime, note) {
 
   // Store the updated array back in the storage.
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+  invalidateSessionsCache(); // Clear cache when data changes
   
-  alert("Sessions saved successfully")
+  alert("Session saved successfully!")
 }
 
 function getAllStoredSessions() {
+  // Check if cache is valid (in-memory caching to avoid expensive JSON.parse)
+  if (sessionsCache !== null) {
+    return sessionsCache;
+  }
+
   // Get the string of session data from localStorage
   const data = window.localStorage.getItem(STORAGE_KEY);
 
@@ -342,7 +374,15 @@ function getAllStoredSessions() {
   // otherwise, return the stored data as parsed JSON
   const sessions = data ? JSON.parse(data) : [];
 
+  // Update the cache
+  sessionsCache = sessions;
+
   return sessions;
+}
+
+function invalidateSessionsCache() {
+  // Immediately clear the cache when data changes
+  sessionsCache = null;
 }
 
 function renderPastSessions(reset = true) {
@@ -503,6 +543,7 @@ function renderPastSessions(reset = true) {
       });
       
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+      invalidateSessionsCache();
       
       // Re-render
       renderPastSessions();
@@ -517,6 +558,7 @@ function renderPastSessions(reset = true) {
         } else {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
         }
+        invalidateSessionsCache();
         renderPastSessions();
       }
     };
